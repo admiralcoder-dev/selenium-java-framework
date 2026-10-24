@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdmiralCoder Selenium Inventory Demo</title>
+<style>
+body {font:16px system-ui,sans-serif;max-width:740px;margin:48px auto;padding:0 20px;color:#17243b}
+form {display:flex;flex-wrap:wrap;gap:14px;margin:22px 0}
+label {display:grid;gap:6px}input,button {font:inherit;padding:10px;border-radius:6px;border:1px solid #8994a7}
+button {background:#164db2;color:white;cursor:pointer;border:0}
+li {display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ddd;padding:10px}
+[role="alert"] {min-height:1.5em;color:#8a1313}
+</style>
+</head>
+<body>
+<main>
+<h1>Inventory Demo</h1>
+<p>Isolated inventory fixture for Selenium Java UI testing.</p>
+<label>Search <input data-testid="search" type="search" aria-label="Search inventory"></label>
+<form data-testid="form" novalidate>
+<label>Item name <input data-testid="name" maxlength="100"></label>
+<label>Quantity <input data-testid="quantity" type="number" step="1"></label>
+<button data-testid="add" type="submit">Add item</button>
+</form>
+<p role="alert" data-testid="message"></p>
+<ul data-testid="items" aria-label="Inventory items"></ul>
+<p data-testid="empty" hidden>No items found</p>
+</main>
+<script>
+const $ = selector => document.querySelector(selector);
+const seed = [{id:"rice",name:"Rice",quantity:2},{id:"milk",name:"Milk",quantity:1}];
+let items;
+try { items = JSON.parse(localStorage.getItem("inventory-items")) ?? seed; }
+catch { items = seed; }
+function save() { localStorage.setItem("inventory-items", JSON.stringify(items)); }
+function render() {
+  const list = $('[data-testid="items"]');
+  list.replaceChildren();
+  const query = $('[data-testid="search"]').value.trim().toLowerCase();
+  const visible = items.filter(item => item.name.toLowerCase().includes(query));
+  for (const item of visible) {
+    const li = document.createElement("li");
+    li.dataset.testid = "item";
+    const span = document.createElement("span");
+    span.textContent = item.name + " — " + item.quantity;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.testid = "delete";
+    button.textContent = "Delete";
+    button.setAttribute("aria-label", "Delete " + item.name);
+    button.addEventListener("click", () => {
+      items = items.filter(candidate => candidate.id !== item.id);
+      save();
+      $('[data-testid="message"]').textContent = "Item deleted";
+      render();
+    });
+    li.append(span, button);
+    list.append(li);
+  }
+  $('[data-testid="empty"]').hidden = visible.length !== 0;
+}
+$('[data-testid="search"]').addEventListener("input", render);
+$('[data-testid="form"]').addEventListener("submit", event => {
+  event.preventDefault();
+  const name = $('[data-testid="name"]').value.trim();
+  const quantityString = $('[data-testid="quantity"]').value;
+  const quantity = Number(quantityString);
+  if (!name || !quantityString || !Number.isInteger(quantity) || quantity < 0) {
+    $('[data-testid="message"]').textContent = "Enter a valid item name and quantity";
+    return;
+  }
+  items.push({id:crypto.randomUUID(),name,quantity});
+  save();
+  $('[data-testid="form"]').reset();
+  $('[data-testid="message"]').textContent = "Item added";
+  render();
+});
+render();
+</script>
+</body>
+</html>
